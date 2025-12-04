@@ -53,7 +53,7 @@ I2S_HandleTypeDef hi2s3;
 TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
-const uint16_t tmr_channel_array[LED_COUNT] = {TIM_CHANNEL_1,
+const uint32_t tmr_channel_array[LED_COUNT] = {TIM_CHANNEL_1,
                                               TIM_CHANNEL_2,
                                               TIM_CHANNEL_3,
                                               TIM_CHANNEL_4};
