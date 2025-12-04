@@ -39,7 +39,7 @@ typedef enum {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define PWM_STEP_NUM  5    /* 20% */
+#define PWM_STEP_NUM  5    /* Every step 20% */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,12 +54,11 @@ TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 const uint16_t tmr_channel_array[LED_COUNT] = {TIM_CHANNEL_1,
-                              TIM_CHANNEL_2,
-							  TIM_CHANNEL_3,
-							  TIM_CHANNEL_4};
+                                              TIM_CHANNEL_2,
+                                              TIM_CHANNEL_3,
+                                              TIM_CHANNEL_4};
 volatile uint8_t pwm_step[LED_COUNT] = {0};
 volatile uint16_t pwm_step_duty = 0;
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -112,9 +111,10 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   for (i = 0; i < LED_COUNT; i++) {
-	HAL_TIM_PWM_Start(&htim4, tmr_channel_array[i]);
+    HAL_TIM_PWM_Start(&htim4, tmr_channel_array[i]);
     __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], 0);
   }
+
   pwm_step_duty = (htim4.Init.Period + 1) / 5;
   /* USER CODE END 2 */
 
@@ -122,7 +122,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	HAL_Delay(100);
+    HAL_Delay(100);
     /* USER CODE END WHILE */
     MX_USB_HOST_Process();
 
@@ -425,37 +425,45 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     case SW3_Pin: /* Red */
       pwm_step[RED_LED]++;
       if (PWM_STEP_NUM < pwm_step[RED_LED]) {
-      	pwm_step[RED_LED] = 0;
+        pwm_step[RED_LED] = 0;
       }
+
       pwm_value = pwm_step[RED_LED] * pwm_step_duty;
       __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[RED_LED], pwm_value);
+
       break;
 
     case SW4_Pin: /* Green */
       pwm_step[GREEN_LED]++;
       if (PWM_STEP_NUM < pwm_step[GREEN_LED]) {
-    	pwm_step[GREEN_LED] = 0;
+        pwm_step[GREEN_LED] = 0;
       }
+
       pwm_value = pwm_step[GREEN_LED] * pwm_step_duty;
       __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[GREEN_LED], pwm_value);
+
       break;
 
     case SW0_Pin: /* Blue */
       pwm_step[BLUE_LED]++;
       if (PWM_STEP_NUM < pwm_step[BLUE_LED]) {
-    	pwm_step[BLUE_LED] = 0;
+        pwm_step[BLUE_LED] = 0;
       }
+
       pwm_value = pwm_step[BLUE_LED] * pwm_step_duty;
       __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[BLUE_LED], pwm_value);
+
       break;
 
     case SW2_Pin: /* Orange */
       pwm_step[ORANGE_LED]++;
       if (PWM_STEP_NUM < pwm_step[ORANGE_LED]) {
-    	pwm_step[ORANGE_LED] = 0;
+        pwm_step[ORANGE_LED] = 0;
       }
+
       pwm_value = pwm_step[ORANGE_LED] * pwm_step_duty;
       __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[ORANGE_LED], pwm_value);
+
       break;
 
     case SW1_Pin: /* Unused */
