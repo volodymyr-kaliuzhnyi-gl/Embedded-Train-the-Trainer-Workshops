@@ -1,12 +1,23 @@
+# ============================
+# STM32CubeIDE / Eclipse
+# ============================
 .settings/
 .metadata/
 .project
 .cproject
 .loadpath
 *.launch
+
+# ============================
+# Build directories
+# ============================
 Debug/
 Release/
 build/
+
+# ============================
+# Build outputs
+# ============================
 *.o
 *.obj
 *.elf
@@ -18,19 +29,26 @@ build/
 *.d
 *.su
 *.a
+
+# ============================
+# Auto-generated Makefiles
+# ============================
 *.mk
 subdir.mk
 sources.mk
 objects.mk
+
+# ============================
+# Temporary / backup files
+# ============================
 *.log
 *.tmp
 *.bak
 *~
 *.swp
+
+# ============================
+# VSCode
+# ============================
 .vscode/
-CMakeFiles/
-CMakeCashe.txt
-cmake_install.cmake
-Makefile
-*.pyc
-__pycache__/
+
