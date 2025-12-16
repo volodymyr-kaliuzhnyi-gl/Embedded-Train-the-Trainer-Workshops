@@ -40,7 +40,6 @@ typedef enum {
 /* USER CODE BEGIN PD */
 #define LED_UPDATE_TIME    100   /* 100 ms */
 #define LED_SUBRANGE       20
-#define SUBRANGE_STEP      5     /* 20% */
 #define ADC_RANGE_BEGIN    1070
 #define PWM_STEP_NUM       5     /* 20% */
 /* USER CODE END PD */
@@ -67,7 +66,7 @@ const uint16_t adc_range[LED_COUNT] = {ADC_RANGE_BEGIN + LED_SUBRANGE,
                      ADC_RANGE_BEGIN + 2 * LED_SUBRANGE,
                      ADC_RANGE_BEGIN + 3 * LED_SUBRANGE,
                      ADC_RANGE_BEGIN + 4 * LED_SUBRANGE};
-int16_t pwm_step_duty = 0;
+int16_t pwm_period = 0;
 
 /* USER CODE END PV */
 
@@ -133,7 +132,7 @@ int main(void)
     __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], 0);
   }
 
-  pwm_step_duty = (htim4.Init.Period + 1) / PWM_STEP_NUM;
+  pwm_period = htim4.Init.Period + 1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -530,7 +529,6 @@ static
 void indicateTemperature(uint16_t adc_value)
 {
   led_t led_range = LED_COUNT;
-  uint16_t pwm_step = 0;
   uint16_t pwm_value = 0;
   uint16_t subrange_value = 0;
   led_t i = 0;
@@ -547,13 +545,11 @@ void indicateTemperature(uint16_t adc_value)
 
   subrange_value = adc_value + LED_SUBRANGE - adc_range[led_range];
 
-  pwm_step = subrange_value / SUBRANGE_STEP;
-
-  pwm_value = pwm_step * pwm_step_duty;
+  pwm_value =  (subrange_value * pwm_period) / LED_SUBRANGE;
 
   for (i = GREEN_LED; i < LED_COUNT; i++) {
     if (i < led_range) {
-      __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], pwm_step_duty * PWM_STEP_NUM);
+      __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], pwm_period);
     }
 
     if (i == led_range) {
