@@ -33,17 +33,16 @@ typedef enum {
   RED_LED,
   BLUE_LED,
   LED_COUNT
-}led_t;
+} led_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define LED_UPDATE_TIME        100   /* 100 ms */
-#define LED_SUBRANGE	       20
-#define SUBRANGE_STEP          5     /* 20% */
-#define ADC_RANGE_BEGIN        1050
-#define PWM_STEP_NUM           5     /* 20% */
-
+#define LED_UPDATE_TIME    100   /* 100 ms */
+#define LED_SUBRANGE       20
+#define SUBRANGE_STEP      5     /* 20% */
+#define ADC_RANGE_BEGIN    1070
+#define PWM_STEP_NUM       5     /* 20% */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -61,14 +60,15 @@ TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 const uint32_t tmr_channel_array[LED_COUNT] = {TIM_CHANNEL_1,
-                              	  	  	  	   TIM_CHANNEL_2,
-							                   TIM_CHANNEL_3,
-							                   TIM_CHANNEL_4};
+                                               TIM_CHANNEL_2,
+                                               TIM_CHANNEL_3,
+                                               TIM_CHANNEL_4};
 const uint16_t adc_range[LED_COUNT] = {ADC_RANGE_BEGIN + LED_SUBRANGE,
-		                               ADC_RANGE_BEGIN + 2 * LED_SUBRANGE,
-									   ADC_RANGE_BEGIN + 3 * LED_SUBRANGE,
-									   ADC_RANGE_BEGIN + 4 * LED_SUBRANGE};
-uint16_t pwm_step_duty = 0;
+                     ADC_RANGE_BEGIN + 2 * LED_SUBRANGE,
+                     ADC_RANGE_BEGIN + 3 * LED_SUBRANGE,
+                     ADC_RANGE_BEGIN + 4 * LED_SUBRANGE};
+int16_t pwm_step_duty = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -99,6 +99,7 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
   volatile uint16_t adc_values[2] = {0};
+  int i = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -123,19 +124,24 @@ int main(void)
   MX_I2S3_Init();
   MX_USB_HOST_Init();
   MX_TIM4_Init();
-  //MX_ADC1_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_values, 2);
-   pwm_step_duty = (htim4.Init.Period + 1) / PWM_STEP_NUM;
-   __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[1], htim4.Init.Period);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_values, 2);
+
+  for (i = 0; i < LED_COUNT; i++) {
+    HAL_TIM_PWM_Start(&htim4, tmr_channel_array[i]);
+    __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], 0);
+  }
+
+  pwm_step_duty = (htim4.Init.Period + 1) / PWM_STEP_NUM;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    //HAL_Delay(LED_UPDATE_TIME);
     indicateTemperature(adc_values[1]);
+    HAL_Delay(1);
     /* USER CODE END WHILE */
     MX_USB_HOST_Process();
 
@@ -505,64 +511,60 @@ static void MX_GPIO_Init(void)
 static
 led_t get_indicate_range(uint16_t adc_value)
 {
-	led_t i = LED_COUNT;
+  led_t i = LED_COUNT;
 
-	if (adc_value < ADC_RANGE_BEGIN) {
-		return LED_COUNT;
-	}
+  if (adc_value < ADC_RANGE_BEGIN) {
+    return LED_COUNT;
+  }
 
-	for (i = GREEN_LED; i < LED_COUNT; i++) {
-		if (adc_value < adc_range[i]) {
-				return LED_COUNT;
-		}
-	}
+  for (i = GREEN_LED; i < LED_COUNT; i++) {
+    if (adc_value < adc_range[i]) {
+      return i;
+    }
+  }
 
-	return BLUE_LED;
+  return BLUE_LED;
 }
 
 static
 void indicateTemperature(uint16_t adc_value)
 {
-	led_t led_range = LED_COUNT;
-	uint16_t pwm_step = 0;
-	uint16_t pwm_value = 0;
-	uint16_t subrange_value = 0;
-	led_t i = 0;
+  led_t led_range = LED_COUNT;
+  uint16_t pwm_step = 0;
+  uint16_t pwm_value = 0;
+  uint16_t subrange_value = 0;
+  led_t i = 0;
 
-	__HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[0], 200);
-	return;
+  led_range = get_indicate_range(adc_value);
+  if (LED_COUNT == led_range) {
+    /* Value is below the range */
+    for (i = GREEN_LED; i < LED_COUNT; i++) {
+      __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], 0);
+    }
 
-	led_range = get_indicate_range(adc_value);
-	if (LED_COUNT == led_range) {
-		/* Value is below the range */
-		for (i = GREEN_LED; i < LED_COUNT; i++) {
-		  __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], 0);
-		}
+    return;
+  }
 
-		return;
-	}
+  subrange_value = adc_value + LED_SUBRANGE - adc_range[led_range];
 
-	subrange_value = adc_value + LED_SUBRANGE - adc_range[led_range];
+  pwm_step = subrange_value / SUBRANGE_STEP;
 
-	pwm_step = subrange_value / SUBRANGE_STEP;
+  pwm_value = pwm_step * pwm_step_duty;
 
-	pwm_value = pwm_step * pwm_step_duty;
+  for (i = GREEN_LED; i < LED_COUNT; i++) {
+    if (i < led_range) {
+      __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], pwm_step_duty * PWM_STEP_NUM);
+    }
 
-	for (i = GREEN_LED; i < LED_COUNT; i++) {
-		if (i < led_range) {
-			__HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], pwm_step_duty * PWM_STEP_NUM);
-		}
+    if (i == led_range) {
+      __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], pwm_value);
+    }
 
-		if (i == led_range) {
-			__HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], pwm_value);
-		}
-
-		if (i > led_range) {
-			__HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], 0);
-		}
-	}
+    if (i > led_range) {
+      __HAL_TIM_SET_COMPARE(&htim4, tmr_channel_array[i], 0);
+    }
+  }
 }
-
 /* USER CODE END 4 */
 
 /**
