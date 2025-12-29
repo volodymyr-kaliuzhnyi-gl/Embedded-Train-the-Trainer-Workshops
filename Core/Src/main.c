@@ -399,6 +399,44 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+/**
+  * @brief  EXTI Line Detection Callback.
+  * This function is automatically called when ANY configured GPIO interrupt occurs.
+  * @param  GPIO_Pin: The specific pin that triggered the interrupt.
+  */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+
+  switch(GPIO_Pin) {
+    case SW3_Pin: /* Red */
+      HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(LED_GPIO_Port, Green_LED_Pin | Orange_LED_Pin | Blue_LED_Pin, GPIO_PIN_RESET);
+      break;
+
+    case SW4_Pin: /* Green */
+      HAL_GPIO_WritePin(LED_GPIO_Port, Green_LED_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Orange_LED_Pin | Blue_LED_Pin, GPIO_PIN_RESET);
+      break;
+
+    case SW0_Pin: /* Blue */
+      HAL_GPIO_WritePin(LED_GPIO_Port, Blue_LED_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Orange_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
+      break;
+
+    case SW2_Pin: /* Orange */
+      HAL_GPIO_WritePin(LED_GPIO_Port, Orange_LED_Pin, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
+      break;
+
+    case SW1_Pin: /* Nothing */
+      HAL_GPIO_WritePin(LED_GPIO_Port, Orange_LED_Pin | Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
+      break;
+
+    default:
+      break;
+  }
+}
+
 /* USER CODE END 4 */
 
 /**
