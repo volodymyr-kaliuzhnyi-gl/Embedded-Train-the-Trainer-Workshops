@@ -26,12 +26,19 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define BRIGHTNESS_MAX			100U
+#define BRIGHTNESS_CHANGE_STEP  20U
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+enum ext_led {
+	EXT_LED_RED,
+	EXT_LED_GREEN,
+	EXT_LED_YELLOW,
+	EXT_LED_BLUE,
+	EXT_LED_COUNT
+};
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,6 +51,7 @@ I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
 PCA9685_HandleTypeDef hpca;
+volatile uint8_t led_brightness[EXT_LED_COUNT] = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -114,37 +122,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // === FADE IN ===
-      for (int visual_brightness = 0; visual_brightness <= 100; visual_brightness++) {
+	  for (int i = EXT_LED_RED; i < EXT_LED_COUNT; i++) {
+	    uint32_t brightness = led_brightness[i];
+		uint8_t corrected_duty = (uint8_t)((brightness * brightness) / 100);
 
-    	uint8_t corrected_duty = (uint8_t)((visual_brightness * visual_brightness) / 100);
+		if (corrected_duty != duty_values[i]) {
+			duty_values[i] = corrected_duty;
 
-	    for (int i = 0; i < 16; i++) {
-	      duty_values[i] = corrected_duty;
-	    }
+			PCA9685_SetDutyCycle(&hpca, i, duty_values[i]);
+		}
 
-	    PCA9685_SetAllChannelsDuty(&hpca, duty_values);
-
-	    HAL_Delay(20);
 	  }
 
-	  HAL_Delay(500);
 
-	  // === FADE OUT ===
-	  for (int visual_brightness = 100; visual_brightness >= 0; visual_brightness--) {
 
-	    uint8_t corrected_duty = (uint8_t)((visual_brightness * visual_brightness) / 100);
-
-	    for (int i = 0; i < 16; i++) {
-	      duty_values[i] = corrected_duty;
-	    }
-
-	    PCA9685_SetAllChannelsDuty(&hpca, duty_values);
-
-	    HAL_Delay(20);
-	  }
-
-	  HAL_Delay(1000);
+	  HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
@@ -398,6 +390,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static
+uint8_t update_brightness(uint8_t brightness)
+{
+	if (brightness > BRIGHTNESS_MAX - BRIGHTNESS_CHANGE_STEP) {
+		brightness = 0;
+	} else {
+		brightness += BRIGHTNESS_CHANGE_STEP;
+	}
+
+	return brightness;
+}
 
 /**
   * @brief  EXTI Line Detection Callback.
@@ -406,30 +409,46 @@ static void MX_GPIO_Init(void)
   */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-
   switch(GPIO_Pin) {
     case SW3_Pin: /* Red */
       HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin, GPIO_PIN_SET);
       HAL_GPIO_WritePin(LED_GPIO_Port, Green_LED_Pin | Orange_LED_Pin | Blue_LED_Pin, GPIO_PIN_RESET);
+
+      led_brightness[EXT_LED_RED] = update_brightness(led_brightness[EXT_LED_RED]);
+
       break;
 
     case SW4_Pin: /* Green */
       HAL_GPIO_WritePin(LED_GPIO_Port, Green_LED_Pin, GPIO_PIN_SET);
       HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Orange_LED_Pin | Blue_LED_Pin, GPIO_PIN_RESET);
+
+      led_brightness[EXT_LED_GREEN] = update_brightness(led_brightness[EXT_LED_GREEN]);
+
       break;
 
     case SW0_Pin: /* Blue */
       HAL_GPIO_WritePin(LED_GPIO_Port, Blue_LED_Pin, GPIO_PIN_SET);
       HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Orange_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
+
+      led_brightness[EXT_LED_BLUE] = update_brightness(led_brightness[EXT_LED_BLUE]);
+
       break;
 
     case SW2_Pin: /* Orange */
       HAL_GPIO_WritePin(LED_GPIO_Port, Orange_LED_Pin, GPIO_PIN_SET);
       HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
+
+      led_brightness[EXT_LED_YELLOW] = update_brightness(led_brightness[EXT_LED_YELLOW]);
+
       break;
 
     case SW1_Pin: /* Nothing */
       HAL_GPIO_WritePin(LED_GPIO_Port, Orange_LED_Pin | Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
+
+      for(int i = 0; i < EXT_LED_COUNT; i++) {
+    	  led_brightness[i] = 0;
+      }
+
       break;
 
     default:
