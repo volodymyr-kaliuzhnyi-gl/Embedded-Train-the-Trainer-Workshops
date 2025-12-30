@@ -26,18 +26,18 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define BRIGHTNESS_MAX			100U
-#define BRIGHTNESS_CHANGE_STEP  20U
+#define BRIGHTNESS_MAX          100U
+#define BRIGHTNESS_CHANGE_STEP	20U
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 enum ext_led {
-	EXT_LED_RED,
-	EXT_LED_GREEN,
-	EXT_LED_YELLOW,
-	EXT_LED_BLUE,
-	EXT_LED_COUNT
+  EXT_LED_RED,
+  EXT_LED_GREEN,
+  EXT_LED_YELLOW,
+  EXT_LED_BLUE,
+  EXT_LED_COUNT
 };
 /* USER CODE END PD */
 
@@ -102,16 +102,19 @@ int main(void)
   // --- PCA9685 ---
   hpca.invrt = 1;
 
-  if (HAL_OK != PCA9685_Init(&hpca, &hi2c1, 0)) {
+  if (HAL_OK != PCA9685_Init(&hpca, &hi2c1, 0x00))
+  {
     Error_Handler();
   }
 
-  if (HAL_OK != PCA9685_SetPWMFreq(&hpca, 200)) {
+  if (HAL_OK != PCA9685_SetPWMFreq(&hpca, 200))
+  {
     Error_Handler();
   }
 
-  if (HAL_OK != PCA9685_SetAllChannelsDuty(&hpca, duty_values)) {
-	  Error_Handler();
+  if (HAL_OK != PCA9685_SetAllChannelsDuty(&hpca, duty_values))
+  {
+    Error_Handler();
   }
 
   HAL_GPIO_WritePin(PCA9685_OE_GPIO_Port, PCA9685_OE_Pin, GPIO_PIN_RESET);
@@ -122,21 +125,22 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  for (int i = EXT_LED_RED; i < EXT_LED_COUNT; i++) {
-	    uint32_t brightness = led_brightness[i];
-		uint8_t corrected_duty = (uint8_t)((brightness * brightness) / 100);
+    for (int i = EXT_LED_RED; i < EXT_LED_COUNT; i++)
+    {
+      uint32_t brightness;
+      uint8_t corrected_duty;
 
-		if (corrected_duty != duty_values[i]) {
-			duty_values[i] = corrected_duty;
+      brightness = led_brightness[i];
+      corrected_duty = (uint8_t)((brightness * brightness) / 100);
 
-			PCA9685_SetDutyCycle(&hpca, i, duty_values[i]);
-		}
+      if (corrected_duty != duty_values[i])
+      {
+        duty_values[i] = corrected_duty;
+        PCA9685_SetDutyCycle(&hpca, i, duty_values[i]);
+      }
+    }
 
-	  }
-
-
-
-	  HAL_Delay(100);
+    HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
@@ -366,8 +370,8 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PCA9685_OE_Pin */
   GPIO_InitStruct.Pin = PCA9685_OE_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(PCA9685_OE_GPIO_Port, &GPIO_InitStruct);
 
@@ -393,13 +397,16 @@ static void MX_GPIO_Init(void)
 static
 uint8_t update_brightness(uint8_t brightness)
 {
-	if (brightness > BRIGHTNESS_MAX - BRIGHTNESS_CHANGE_STEP) {
-		brightness = 0;
-	} else {
-		brightness += BRIGHTNESS_CHANGE_STEP;
-	}
+  if (brightness > BRIGHTNESS_MAX - BRIGHTNESS_CHANGE_STEP)
+  {
+    brightness = 0;
+  }
+  else
+  {
+    brightness += BRIGHTNESS_CHANGE_STEP;
+  }
 
-	return brightness;
+  return brightness;
 }
 
 /**
@@ -409,48 +416,55 @@ uint8_t update_brightness(uint8_t brightness)
   */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  switch(GPIO_Pin) {
+  switch(GPIO_Pin)
+  {
     case SW3_Pin: /* Red */
       HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(LED_GPIO_Port, Green_LED_Pin | Orange_LED_Pin | Blue_LED_Pin, GPIO_PIN_RESET);
-
-      led_brightness[EXT_LED_RED] = update_brightness(led_brightness[EXT_LED_RED]);
+      HAL_GPIO_WritePin(LED_GPIO_Port,
+                        Green_LED_Pin | Orange_LED_Pin | Blue_LED_Pin,
+                        GPIO_PIN_RESET);
+      led_brightness[EXT_LED_RED] =
+                      update_brightness(led_brightness[EXT_LED_RED]);
 
       break;
-
     case SW4_Pin: /* Green */
       HAL_GPIO_WritePin(LED_GPIO_Port, Green_LED_Pin, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Orange_LED_Pin | Blue_LED_Pin, GPIO_PIN_RESET);
-
-      led_brightness[EXT_LED_GREEN] = update_brightness(led_brightness[EXT_LED_GREEN]);
+      HAL_GPIO_WritePin(LED_GPIO_Port,
+                        Red_LED_Pin | Orange_LED_Pin | Blue_LED_Pin,
+                        GPIO_PIN_RESET);
+      led_brightness[EXT_LED_GREEN] =
+                      update_brightness(led_brightness[EXT_LED_GREEN]);
 
       break;
-
     case SW0_Pin: /* Blue */
       HAL_GPIO_WritePin(LED_GPIO_Port, Blue_LED_Pin, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Orange_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
-
-      led_brightness[EXT_LED_BLUE] = update_brightness(led_brightness[EXT_LED_BLUE]);
+      HAL_GPIO_WritePin(LED_GPIO_Port,
+                        Red_LED_Pin | Orange_LED_Pin | Green_LED_Pin,
+                        GPIO_PIN_RESET);
+      led_brightness[EXT_LED_BLUE] =
+                      update_brightness(led_brightness[EXT_LED_BLUE]);
 
       break;
-
     case SW2_Pin: /* Orange */
       HAL_GPIO_WritePin(LED_GPIO_Port, Orange_LED_Pin, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(LED_GPIO_Port, Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
-
-      led_brightness[EXT_LED_YELLOW] = update_brightness(led_brightness[EXT_LED_YELLOW]);
+      HAL_GPIO_WritePin(LED_GPIO_Port,
+                        Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin,
+                        GPIO_PIN_RESET);
+      led_brightness[EXT_LED_YELLOW] =
+                      update_brightness(led_brightness[EXT_LED_YELLOW]);
 
       break;
-
     case SW1_Pin: /* Nothing */
-      HAL_GPIO_WritePin(LED_GPIO_Port, Orange_LED_Pin | Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin, GPIO_PIN_RESET);
-
-      for(int i = 0; i < EXT_LED_COUNT; i++) {
-    	  led_brightness[i] = 0;
+      HAL_GPIO_WritePin(LED_GPIO_Port,
+                        Orange_LED_Pin | Red_LED_Pin | Blue_LED_Pin |
+                        Green_LED_Pin,
+                        GPIO_PIN_RESET);
+      for(int i = 0; i < EXT_LED_COUNT; i++)
+      {
+        led_brightness[i] = 0;
       }
 
       break;
-
     default:
       break;
   }
