@@ -21,24 +21,19 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "pca9685.h"
+#include <stdbool.h>
+
+#include "cs43l22.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define BRIGHTNESS_MAX          100U
-#define BRIGHTNESS_CHANGE_STEP	20U
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-enum ext_led {
-  EXT_LED_RED,
-  EXT_LED_GREEN,
-  EXT_LED_YELLOW,
-  EXT_LED_BLUE,
-  EXT_LED_COUNT
-};
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,16 +44,21 @@ enum ext_led {
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+I2S_HandleTypeDef hi2s3;
+DMA_HandleTypeDef hdma_spi3_tx;
+
 /* USER CODE BEGIN PV */
-PCA9685_HandleTypeDef hpca;
-volatile uint8_t led_brightness[EXT_LED_COUNT] = {0};
+volatile bool start_melody = false;
+int16_t dataI2S[100] = {0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
-/* USER CODE BEGIN PFP */
+static void MX_I2S3_Init(void);
 
 /* USER CODE END PFP */
 
@@ -75,7 +75,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  uint8_t duty_values[16] = {0};
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -96,28 +96,16 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_I2C1_Init();
+  MX_I2S3_Init();
   /* USER CODE BEGIN 2 */
+  CS43L22_Init();
 
-  // --- PCA9685 ---
-  hpca.invrt = 1;
+  // Transmit empty data
+  HAL_I2S_Transmit_DMA(&hi2s3, (uint16_t *)dataI2S, 100);
 
-  if (HAL_OK != PCA9685_Init(&hpca, &hi2c1, 0x00))
-  {
-    Error_Handler();
-  }
-
-  if (HAL_OK != PCA9685_SetPWMFreq(&hpca, 200))
-  {
-    Error_Handler();
-  }
-
-  if (HAL_OK != PCA9685_SetAllChannelsDuty(&hpca, duty_values))
-  {
-    Error_Handler();
-  }
-
-  HAL_GPIO_WritePin(PCA9685_OE_GPIO_Port, PCA9685_OE_Pin, GPIO_PIN_RESET);
+  CS43L22_SetVolume(80);
 
   /* USER CODE END 2 */
 
@@ -125,22 +113,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    for (int i = EXT_LED_RED; i < EXT_LED_COUNT; i++)
-    {
-      uint32_t brightness;
-      uint8_t corrected_duty;
+	while (!start_melody)
+	{
+      HAL_Delay(10);
+	}
 
-      brightness = led_brightness[i];
-      corrected_duty = (uint8_t)((brightness * brightness) / 100);
+	start_melody = false;
+	CS43L22_Play_HappyBirthday();
 
-      if (corrected_duty != duty_values[i])
-      {
-        duty_values[i] = corrected_duty;
-        PCA9685_SetDutyCycle(&hpca, i, duty_values[i]);
-      }
+	while (!start_melody)
+	{
+      HAL_Delay(10);
     }
 
-    HAL_Delay(100);
+	start_melody = false;
+	CS43L22_Play_JingleBells();
 
     /* USER CODE END WHILE */
 
@@ -229,6 +216,56 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief I2S3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2S3_Init(void)
+{
+
+  /* USER CODE BEGIN I2S3_Init 0 */
+
+  /* USER CODE END I2S3_Init 0 */
+
+  /* USER CODE BEGIN I2S3_Init 1 */
+
+  /* USER CODE END I2S3_Init 1 */
+  hi2s3.Instance = SPI3;
+  hi2s3.Init.Mode = I2S_MODE_MASTER_TX;
+  hi2s3.Init.Standard = I2S_STANDARD_PHILIPS;
+  hi2s3.Init.DataFormat = I2S_DATAFORMAT_16B;
+  hi2s3.Init.MCLKOutput = I2S_MCLKOUTPUT_ENABLE;
+  hi2s3.Init.AudioFreq = I2S_AUDIOFREQ_48K;
+  hi2s3.Init.CPOL = I2S_CPOL_LOW;
+  hi2s3.Init.ClockSource = I2S_CLOCK_PLL;
+  hi2s3.Init.FullDuplexMode = I2S_FULLDUPLEXMODE_DISABLE;
+  if (HAL_I2S_Init(&hi2s3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2S3_Init 2 */
+
+  /* USER CODE END I2S3_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -289,14 +326,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : I2S3_WS_Pin */
-  GPIO_InitStruct.Pin = I2S3_WS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
-  HAL_GPIO_Init(I2S3_WS_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pins : SPI1_SCK_Pin SPI1_MISO_Pin SPI1_MOSI_Pin */
   GPIO_InitStruct.Pin = SPI1_SCK_Pin|SPI1_MISO_Pin|SPI1_MOSI_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -332,14 +361,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = SW3_Pin|SW4_Pin|SW2_Pin|SW0_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : I2S3_MCK_Pin I2S3_SCK_Pin I2S3_SD_Pin */
-  GPIO_InitStruct.Pin = I2S3_MCK_Pin|I2S3_SCK_Pin|I2S3_SD_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : VBUS_FS_Pin */
@@ -394,28 +415,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-static
-uint8_t update_brightness(uint8_t brightness)
-{
-  if (brightness > BRIGHTNESS_MAX - BRIGHTNESS_CHANGE_STEP)
-  {
-    brightness = 0;
-  }
-  else
-  {
-    brightness += BRIGHTNESS_CHANGE_STEP;
-  }
 
-  return brightness;
-}
-
-/**
-  * @brief  EXTI Line Detection Callback.
-  * This function is automatically called when ANY configured GPIO interrupt occurs.
-  * @param  GPIO_Pin: The specific pin that triggered the interrupt.
-  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+  if (GPIO_Pin == SW3_Pin || GPIO_Pin == SW4_Pin || GPIO_Pin == SW0_Pin || GPIO_Pin == SW1_Pin)
+  {
+	  start_melody = true;
+  }
+
   switch(GPIO_Pin)
   {
     case SW3_Pin: /* Red */
@@ -423,8 +430,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       HAL_GPIO_WritePin(LED_GPIO_Port,
                         Green_LED_Pin | Orange_LED_Pin | Blue_LED_Pin,
                         GPIO_PIN_RESET);
-      led_brightness[EXT_LED_RED] =
-                      update_brightness(led_brightness[EXT_LED_RED]);
 
       break;
     case SW4_Pin: /* Green */
@@ -432,8 +437,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       HAL_GPIO_WritePin(LED_GPIO_Port,
                         Red_LED_Pin | Orange_LED_Pin | Blue_LED_Pin,
                         GPIO_PIN_RESET);
-      led_brightness[EXT_LED_GREEN] =
-                      update_brightness(led_brightness[EXT_LED_GREEN]);
 
       break;
     case SW0_Pin: /* Blue */
@@ -441,8 +444,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       HAL_GPIO_WritePin(LED_GPIO_Port,
                         Red_LED_Pin | Orange_LED_Pin | Green_LED_Pin,
                         GPIO_PIN_RESET);
-      led_brightness[EXT_LED_BLUE] =
-                      update_brightness(led_brightness[EXT_LED_BLUE]);
 
       break;
     case SW2_Pin: /* Orange */
@@ -450,19 +451,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       HAL_GPIO_WritePin(LED_GPIO_Port,
                         Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin,
                         GPIO_PIN_RESET);
-      led_brightness[EXT_LED_YELLOW] =
-                      update_brightness(led_brightness[EXT_LED_YELLOW]);
 
       break;
     case SW1_Pin: /* Nothing */
-      HAL_GPIO_WritePin(LED_GPIO_Port,
-                        Orange_LED_Pin | Red_LED_Pin | Blue_LED_Pin |
-                        Green_LED_Pin,
-                        GPIO_PIN_RESET);
-      for(int i = 0; i < EXT_LED_COUNT; i++)
-      {
-        led_brightness[i] = 0;
-      }
+    	HAL_GPIO_WritePin(LED_GPIO_Port,
+    	                  Orange_LED_Pin | Red_LED_Pin | Blue_LED_Pin |
+    	                  Green_LED_Pin,
+    	                  GPIO_PIN_RESET);
 
       break;
     default:
