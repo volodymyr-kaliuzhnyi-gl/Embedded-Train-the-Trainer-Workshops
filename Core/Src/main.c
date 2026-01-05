@@ -113,21 +113,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	while (!start_melody)
-	{
-      HAL_Delay(10);
-	}
-
-	start_melody = false;
-	CS43L22_Play_HappyBirthday();
-
-	while (!start_melody)
-	{
+    while (!start_melody)
+    {
       HAL_Delay(10);
     }
 
-	start_melody = false;
-	CS43L22_Play_JingleBells();
+    start_melody = false;
+    CS43L22_Play_HappyBirthday();
+
+    while (!start_melody)
+    {
+      HAL_Delay(10);
+    }
+
+    start_melody = false;
+    CS43L22_Play_JingleBells();
 
     /* USER CODE END WHILE */
 
@@ -418,9 +418,12 @@ static void MX_GPIO_Init(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if (GPIO_Pin == SW3_Pin || GPIO_Pin == SW4_Pin || GPIO_Pin == SW0_Pin || GPIO_Pin == SW1_Pin)
+  if (GPIO_Pin == SW3_Pin ||
+      GPIO_Pin == SW4_Pin ||
+      GPIO_Pin == SW0_Pin ||
+      GPIO_Pin == SW1_Pin)
   {
-	  start_melody = true;
+    start_melody = true;
   }
 
   switch(GPIO_Pin)
@@ -430,35 +433,30 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
       HAL_GPIO_WritePin(LED_GPIO_Port,
                         Green_LED_Pin | Orange_LED_Pin | Blue_LED_Pin,
                         GPIO_PIN_RESET);
-
       break;
     case SW4_Pin: /* Green */
       HAL_GPIO_WritePin(LED_GPIO_Port, Green_LED_Pin, GPIO_PIN_SET);
       HAL_GPIO_WritePin(LED_GPIO_Port,
                         Red_LED_Pin | Orange_LED_Pin | Blue_LED_Pin,
                         GPIO_PIN_RESET);
-
       break;
     case SW0_Pin: /* Blue */
       HAL_GPIO_WritePin(LED_GPIO_Port, Blue_LED_Pin, GPIO_PIN_SET);
       HAL_GPIO_WritePin(LED_GPIO_Port,
                         Red_LED_Pin | Orange_LED_Pin | Green_LED_Pin,
                         GPIO_PIN_RESET);
-
       break;
     case SW2_Pin: /* Orange */
       HAL_GPIO_WritePin(LED_GPIO_Port, Orange_LED_Pin, GPIO_PIN_SET);
       HAL_GPIO_WritePin(LED_GPIO_Port,
                         Red_LED_Pin | Blue_LED_Pin | Green_LED_Pin,
                         GPIO_PIN_RESET);
-
       break;
     case SW1_Pin: /* Nothing */
-    	HAL_GPIO_WritePin(LED_GPIO_Port,
-    	                  Orange_LED_Pin | Red_LED_Pin | Blue_LED_Pin |
-    	                  Green_LED_Pin,
-    	                  GPIO_PIN_RESET);
-
+      HAL_GPIO_WritePin(LED_GPIO_Port,
+                        Orange_LED_Pin | Red_LED_Pin | Blue_LED_Pin |
+                        Green_LED_Pin,
+                        GPIO_PIN_RESET);
       break;
     default:
       break;
